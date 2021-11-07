@@ -12,12 +12,16 @@
         try
         {
             asio::io_service io_service;
-            tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 3200));
+            
             std::string message = "hello from server\n";
+
+            ::unlink("/tmp/foobar"); // Remove previous binding.
+            boost::asio::local::stream_protocol::endpoint ep("/tmp/foobar");
+            boost::asio::local::stream_protocol::acceptor acceptor(io_service, ep);
 
             for (;;)
             {
-                tcp::socket socket(io_service);
+                boost::asio::local::stream_protocol::socket socket(io_service);
                 acceptor.accept(socket);
 
                 while(true){
@@ -27,7 +31,7 @@
                     size_t len = socket.read_some(boost::asio::buffer(buf), error);
 
                     std::cout.write(buf.data(), len);
-                    
+
                     system::error_code ignored_error;
                     socket.write_some(asio::buffer(message), ignored_error);
                 }

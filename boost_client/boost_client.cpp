@@ -11,11 +11,12 @@
         try
         {
             boost::asio::io_service io_service;
-            tcp::endpoint end_point(boost::asio::ip::address::from_string("127.0.0.1"), 3200);
+            
+            boost::asio::local::stream_protocol::endpoint end_point("/tmp/foobar");
+            boost::asio::local::stream_protocol::socket socket(io_service);
 
             std::string message = "hello from client\n";
 
-            tcp::socket socket(io_service);
             socket.connect(end_point);
 
             for (;;)
