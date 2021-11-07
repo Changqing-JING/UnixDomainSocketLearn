@@ -1,74 +1,70 @@
+
+
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <sys/un.h>
-#include "../include/path.h"
+#include <arpa/inet.h>
+#include <signal.h>
+#include <string.h>
+#include <errno.h>
 
-#define BUFF_LEN 1024
+struct sockaddr_un *servaddr = NULL, *clientaddr = NULL;
+int sock_fd;
+const char *SOCK_PATH="/tmp/unix_sock.sock";
 
-void handle_udp_msg(int fd)
-{
-    char buf[BUFF_LEN];  //接收缓冲区，1024字节
-    socklen_t len;
-    int count;
-    struct sockaddr_un clent_addr;  //clent_addr用于记录发送方的地址信息
-    while(1)
-    {
-        memset(buf, 0, BUFF_LEN);
-        len = sizeof(clent_addr);
-        count = recvfrom(fd, buf, BUFF_LEN, 0, (struct sockaddr*)&clent_addr, &len);  //recvfrom是拥塞函数，没有数据就一直拥塞
-        if(count == -1)
-        {
-            printf("recieve data fail!\n");
-            return;
+
+int main () {
+        char buffer[50] = {0};
+        const char *msg = "Hello from server";
+        socklen_t length = sizeof(struct sockaddr_un);
+        int error;
+
+        /* Part 1 – create the socket */
+        if (0 > (sock_fd = socket(AF_UNIX, SOCK_DGRAM, 0))) {
+                printf("unable to create socket\n");
+                exit(0);
         }
-        printf("client:%s\n",buf);  //打印client发过来的信息
-        memset(buf, 0, BUFF_LEN);
-        sprintf(buf, "I have recieved %d bytes data!\n", count);  //回复client
-        printf("server:%s\n",buf);  //打印自己发送的信息给
-        sendto(fd, buf, BUFF_LEN, 0, (struct sockaddr*)&clent_addr, len);  //发送信息给client，注意使用了clent_addr结构体指针
+        char buffer_send[50] = {0};
+        memset(buffer_send, 0, sizeof(buffer));
+        strcpy(buffer_send, msg);
 
-    }
-}
+        /* Part 2 bind to the socket path */
+        remove(SOCK_PATH);
+        struct sockaddr_un servaddr;
 
+        servaddr.sun_family = AF_UNIX;
+        strcpy(servaddr.sun_path, SOCK_PATH);
 
-/*
-    server:
-            socket-->bind-->recvfrom-->sendto-->close
-*/
+        if (0 != (bind(sock_fd, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_un)))) {
+                printf("bind failed\n");
+                goto end;
+        }
 
-int main(int argc, char* argv[])
-{
-    int server_fd, ret;
-    
+        /* Part 3 – send and receive data to the client */
+        struct sockaddr_un clientaddr;
 
-    server_fd = socket(AF_UNIX, SOCK_DGRAM, 0); 
-    if(server_fd < 0)
-    {
-        printf("create socket fail!\n");
-        return -1;
-    }
+        int num_of_bytes;
+        while (1) {
+                memset(buffer, 0, sizeof(buffer));
+                num_of_bytes = recvfrom(sock_fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&clientaddr, &length);
+                if (num_of_bytes == -1) {
+                        printf("read from client failed\n");
+                        goto end;
+        }
+        printf("%s\n", buffer);
 
-    struct sockaddr_un ser_addr;
+        
+        if((sendto(sock_fd, buffer_send, sizeof(buffer_send), 0, (struct sockaddr *)&clientaddr, length)) != sizeof(buffer)) {
+                printf("errno is %d", errno);
+                printf("send failed\n");
+                goto end;
+                }
+        }
 
-    ser_addr.sun_family = AF_UNIX;
+end:
+        close(sock_fd);
+        return 0;
 
-    strcpy(ser_addr.sun_path, socket_path);
-
-    unlink(socket_path);
-
-    ret = bind(server_fd, (struct sockaddr*)&ser_addr, sizeof(ser_addr));
-    if(ret < 0)
-    {
-        printf("socket bind fail!\n");
-        return -1;
-    }
-
-    handle_udp_msg(server_fd);   //处理接收到的数据
-
-    close(server_fd);
-    return 0;
 }

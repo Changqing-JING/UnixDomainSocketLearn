@@ -1,58 +1,72 @@
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/socket.h>
 #include <sys/un.h>
-#include "../include/path.h"
+#include <unistd.h>
+#include <errno.h>
+
+struct sockaddr_un *servaddr = NULL, *clientaddr = NULL;
+int sockfd;
+const char *SOCKPATH = "/tmp/unix_client_sock.sock";
+const char *SERVERPATH = "/tmp/unix_sock.sock";
 
 
-void udp_msg_sender(int fd, struct sockaddr* dst)
-{
 
-    socklen_t len;
-    struct sockaddr_un src;
-    while(1)
-    {
-        char buf[512] = "TEST UDP MSG!\n";
-        len = sizeof(struct sockaddr_un);
-        printf("client:%s\n",buf);  //打印自己发送的信息
-        sendto(fd, buf, sizeof(buf), 0, dst, len);
-        memset(buf, 0, sizeof(buf));
-        recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr*)&src, &len);  //接收来自server的信息
-        printf("server:%s\n",buf);
-        sleep(1);  //一秒发送一次消息
-    }
-}
+int main() {
+        char buffer[50] = {0};
+        const char *msg = "Hello from client";
+        int length, num_of_bytes;
+        int error;
 
-/*
-    client:
-            socket-->sendto-->revcfrom-->close
-*/
+        char buffer_send[50] = {0};
 
-int main(int argc, char* argv[])
-{
-    int client_fd;
-    
+        strcpy(buffer_send, msg);
 
-    client_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if(client_fd < 0)
-    {
-        printf("create socket fail!\n");
-        return -1;
-    }
+        /* Part 1 – create the socket */
+        if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+                printf("socket creation failed\n");
+                exit(0);
+        }
 
-    struct sockaddr_un ser_addr;
+        /*part 2 – fill the client socket details and bind*/
+        struct sockaddr_un clientaddr;
 
-    ser_addr.sun_family = AF_UNIX;
+        remove(SOCKPATH);
+        clientaddr.sun_family = AF_UNIX;
+        strcpy(clientaddr.sun_path, SOCKPATH);
 
-    strcpy(ser_addr.sun_path, socket_path);
-    
+        if( 0 != (bind(sockfd, (struct sockaddr*)&clientaddr, sizeof(struct sockaddr_un)))) {
+                printf("Unable to bind at client end\n");
+                goto end;
+        }
 
-    udp_msg_sender(client_fd, (struct sockaddr*)&ser_addr);
+        /* read and write data */
+        struct sockaddr_un servaddr;
+        
 
-    close(client_fd);
+        servaddr.sun_family = AF_UNIX;
+        strcpy(servaddr.sun_path, SERVERPATH);
 
-    return 0;
+        while (1) {
+                
+            num_of_bytes = sendto(sockfd, buffer_send, sizeof(buffer), 0, (struct sockaddr*)&servaddr, sizeof(struct sockaddr_un));
+
+            if(num_of_bytes < sizeof(buffer_send)) {
+                    printf("unable to send data to server\n");
+                    goto end;
+            }
+
+            memset(buffer, 0, sizeof(buffer));
+            num_of_bytes = recvfrom(sockfd, buffer, sizeof(buffer), 0, NULL, NULL);
+            if (num_of_bytes == -1) {
+                    printf("unable to receive data from the server\n");
+                    goto end;
+            }
+            printf("%s\n", buffer);
+            sleep(1);
+        }
+end:
+        close(sockfd);
+        return 0;
 }
