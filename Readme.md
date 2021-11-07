@@ -8,7 +8,11 @@ make
 
 ## Install udtrace
 ```shell
+#in ubuntu
 sudo apt install libpcap-dev
+#in mug22 sdk
+opkg-target install libpcap-dev
+
 git clone https://github.com/laf0rge/udtrace.git
 cd udtrace
 make
@@ -22,7 +26,11 @@ Open ./boost_server/boost_server.service:
 ```shell
 sudo cp ./boost_server/boost_server.service /etc/systemd/system/boost_server.service
 sudo systemctl daemon-reload
+
+#start service
 sudo systemctl start boost_server
+
+#stop service
 sudo systemctl stop boost_server
 
 ```
