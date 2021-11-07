@@ -7,8 +7,10 @@
     using namespace boost;
     using boost::asio::ip::tcp;
 
-    int main()
+    int main(int argc, char* argv[], const char** env)
     {
+        fprintf(stderr, "service start\n");
+        fflush(stderr);
         try
         {
             asio::io_service io_service;
@@ -30,7 +32,14 @@
 
                     size_t len = socket.read_some(boost::asio::buffer(buf), error);
 
+                    if(error){
+                        printf("client disconnected\n");
+                        fflush(stdout);
+                        break;
+                    }
+
                     std::cout.write(buf.data(), len);
+                    fflush(stdout);
 
                     system::error_code ignored_error;
                     socket.write_some(asio::buffer(message), ignored_error);
@@ -42,6 +51,7 @@
         {
             std::cerr << e.what() << std::endl;
         }
+        ::unlink("/tmp/foobar");
 
         return 0;
     }

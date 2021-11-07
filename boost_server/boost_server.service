@@ -1,0 +1,12 @@
+[Unit]
+Description=BoostUnixDomainSocketServer
+
+[Service]
+Environment="LD_PRELOAD=/home/jcq/workspace/udtrace/libudtrace.so"
+ExecStart=/home/jcq/workspace/UnixDomainSocketLearn/build/boost_server
+StandardOutput=file:/home/jcq/workspace/UnixDomainSocketLearn/build/trace.log
+StandardError=file:/home/jcq/workspace/UnixDomainSocketLearn/build/trace.log
+SyslogLevel=info
+
+[Install]
+WantedBy=multi-user.target

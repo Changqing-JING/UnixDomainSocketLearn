@@ -6,6 +6,30 @@ cmake ..
 make
 ```
 
+## Install udtrace
+```shell
+sudo apt install libpcap-dev
+git clone https://github.com/laf0rge/udtrace.git
+cd udtrace
+make
+```
+
+## Run boost_sever with systemd
+Open ./boost_server/boost_server.service:
+1. change the ExecStart to your build target path of boost_server
+2. change LD_PRELOAD to your udtrace/libudtrace.so
+3. change StandardOutput and StandardError to your output file
+```shell
+sudo cp ./boost_server/boost_server.service /etc/systemd/system/boost_server.service
+sudo systemctl daemon-reload
+sudo systemctl start boost_server
+sudo systemctl stop boost_server
+
+```
+Attention:
+Systemd will cache stdout in buffer even if '\n' is print. So code need to call fflush(stdout), otherwise trace file may not updated in time.
+
+
 ## install systemtap
 
 ### use apt
